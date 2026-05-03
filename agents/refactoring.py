@@ -711,6 +711,12 @@ class RefactoringAgent:
                 module_name=module_name
             )
             # Fix hallucinated module imports
+            import re
+            
+            # 1. Force wildcard import for the target module to prevent NameErrors from hallucinated classes
+            test_code = re.sub(rf"from\s+{module_name}\s+import\s+(?:\([^)]+\)|[^\n]+)", f"from {module_name} import *", test_code)
+            
+            # 2. Fix other hallucinated modules
             lines = test_code.split('\n')
             import sys
             allowed_mods = set(sys.stdlib_module_names) | {'pytest', 'mock', 'unittest.mock', module_name}
@@ -836,7 +842,7 @@ class RefactoringAgent:
                 'error': str(e)
             }
     
-    def _call_granite_code_model(self, task: str, code: str, analysis: dict) -> str:
+    def _call_granite_code_model(self, task: str, code: str, analysis: dict, **kwargs) -> str:
         """
         Use IBM Granite Code model for code generation.
         
@@ -931,7 +937,8 @@ Generate only the Python code, no explanations."""
         """Build prompt for test generation."""
         return f"""Generate comprehensive pytest unit tests for this Python code.
 The tests will be in a file alongside the module '{module_name}.py'.
-Make sure to include: `from {module_name} import *` or import the specific classes.
+IMPORTANT: You MUST use a wildcard import exactly like this: `from {module_name} import *`
+DO NOT use explicit imports like `from {module_name} import ClassName`.
 
 ```python
 {code}
