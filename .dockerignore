@@ -1,0 +1,140 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation build
+docs/_build/
+site/
+
+# Output directories (will be mounted as volumes)
+output/
+logs/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+tmp/
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+
+# Documentation (not needed in container)
+*.md
+!README.md
+docs/
+DEMO.md
+INSTALLATION.md
+DEPLOYMENT.md
+USER_GUIDE.md
+DEVELOPER_GUIDE.md
+API_DOCUMENTATION.md
+HACKATHON_SUBMISSION.md
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Node modules (if any)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Media files (if not needed)
+*.mp4
+*.avi
+*.mov
+*.wmv
+
+# Archives
+*.tar
+*.gz
+*.bz2
+*.xz

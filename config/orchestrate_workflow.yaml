@@ -1,0 +1,264 @@
+# IBM watsonx Orchestrate Workflow Definition
+# Legacy Code Modernization Pipeline
+
+workflow:
+  name: "Legacy Code Modernization"
+  description: "Automated legacy code modernization pipeline with three specialized agents"
+  version: "1.0.0"
+  author: "Legacy Code Modernization Squad"
+  created: "2026-05-01"
+  
+  # Workflow metadata
+  metadata:
+    category: "code_modernization"
+    tags:
+      - legacy-code
+      - modernization
+      - cobol
+      - java
+      - visual-basic
+      - python
+    estimated_duration: "5-10 minutes"
+  
+  # Input parameters
+  inputs:
+    - name: "legacy_code_path"
+      type: "string"
+      required: true
+      description: "Path to legacy code file or directory"
+      validation:
+        pattern: "^[a-zA-Z0-9_/\\.-]+$"
+    
+    - name: "language"
+      type: "string"
+      required: false
+      description: "Programming language (auto-detected if not provided)"
+      allowed_values:
+        - "cobol"
+        - "java"
+        - "vb"
+        - "vb.net"
+        - "auto"
+      default: "auto"
+    
+    - name: "output_dir"
+      type: "string"
+      required: false
+      description: "Base output directory for results"
+      default: "./output"
+  
+  # Workflow steps
+  steps:
+    # Step 1: Code Analysis
+    - id: "analyze"
+      name: "Code Analysis"
+      agent: "code_analyzer"
+      description: "Analyze legacy code structure, dependencies, and complexity"
+      
+      inputs:
+        - name: "code_path"
+          source: "workflow.inputs.legacy_code_path"
+        - name: "language"
+          source: "workflow.inputs.language"
+        - name: "output_dir"
+          value: "${workflow.inputs.output_dir}/analysis"
+      
+      outputs:
+        - name: "analysis_report"
+          type: "json"
+          path: "${output_dir}/analysis_report.json"
+        - name: "success"
+          type: "boolean"
+      
+      configuration:
+        model: "ibm/granite-13b-instruct-v2"
+        max_tokens: 4096
+        temperature: 0.1
+        timeout: 120
+      
+      retry_policy:
+        max_attempts: 3
+        delay_seconds: 5
+        backoff_multiplier: 2
+      
+      error_handling:
+        on_failure: "halt"
+        log_level: "error"
+    
+    # Step 2: Documentation Generation
+    - id: "document"
+      name: "Documentation Generation"
+      agent: "documentation_agent"
+      description: "Generate comprehensive documentation from analysis results"
+      
+      depends_on:
+        - "analyze"
+      
+      inputs:
+        - name: "analysis_report_path"
+          source: "steps.analyze.outputs.analysis_report"
+        - name: "output_dir"
+          value: "${workflow.inputs.output_dir}/documentation"
+      
+      outputs:
+        - name: "readme"
+          type: "markdown"
+          path: "${output_dir}/README.md"
+        - name: "architecture"
+          type: "markdown"
+          path: "${output_dir}/ARCHITECTURE.md"
+        - name: "inline_comments"
+          type: "json"
+          path: "${output_dir}/inline_comments.json"
+        - name: "success"
+          type: "boolean"
+      
+      configuration:
+        model: "ibm/granite-13b-instruct-v2"
+        max_tokens: 8192
+        temperature: 0.3
+        timeout: 180
+      
+      retry_policy:
+        max_attempts: 3
+        delay_seconds: 5
+        backoff_multiplier: 2
+      
+      error_handling:
+        on_failure: "continue"
+        log_level: "warning"
+    
+    # Step 3: Code Refactoring
+    - id: "refactor"
+      name: "Code Refactoring"
+      agent: "refactoring_agent"
+      description: "Modernize legacy code to Python with tests"
+      
+      depends_on:
+        - "analyze"
+        - "document"
+      
+      inputs:
+        - name: "legacy_code_path"
+          source: "workflow.inputs.legacy_code_path"
+        - name: "analysis_report_path"
+          source: "steps.analyze.outputs.analysis_report"
+        - name: "documentation_path"
+          source: "steps.document.outputs.readme"
+          optional: true
+        - name: "output_dir"
+          value: "${workflow.inputs.output_dir}/modernized"
+      
+      outputs:
+        - name: "modernized_code"
+          type: "python"
+          path: "${output_dir}/*.py"
+        - name: "tests"
+          type: "python"
+          path: "${output_dir}/test_*.py"
+        - name: "test_results"
+          type: "json"
+          path: "${output_dir}/test_results.json"
+        - name: "modernization_report"
+          type: "json"
+          path: "${output_dir}/modernization_report.json"
+        - name: "success"
+          type: "boolean"
+      
+      configuration:
+        model: "ibm/granite-20b-code-instruct"
+        max_tokens: 8192
+        temperature: 0.2
+        timeout: 300
+        use_code_assistant: true
+      
+      retry_policy:
+        max_attempts: 3
+        delay_seconds: 5
+        backoff_multiplier: 2
+      
+      error_handling:
+        on_failure: "halt"
+        log_level: "error"
+  
+  # Workflow outputs
+  outputs:
+    - name: "analysis_report"
+      source: "steps.analyze.outputs.analysis_report"
+      description: "Comprehensive code analysis report"
+    
+    - name: "documentation"
+      source: "steps.document.outputs"
+      description: "Generated documentation files"
+    
+    - name: "modernized_code"
+      source: "steps.refactor.outputs.modernized_code"
+      description: "Modernized Python code"
+    
+    - name: "tests"
+      source: "steps.refactor.outputs.tests"
+      description: "Generated unit tests"
+    
+    - name: "test_results"
+      source: "steps.refactor.outputs.test_results"
+      description: "Test execution results"
+    
+    - name: "pipeline_summary"
+      type: "json"
+      description: "Overall pipeline execution summary"
+  
+  # Error handling strategy
+  error_handling:
+    global_policy:
+      on_failure: "collect_partial_results"
+      notify: true
+      save_state: true
+    
+    recovery:
+      enable_checkpoints: true
+      allow_resume: true
+      max_workflow_retries: 1
+  
+  # Notifications
+  notifications:
+    on_start:
+      enabled: true
+      message: "Legacy code modernization pipeline started"
+    
+    on_complete:
+      enabled: true
+      message: "Pipeline completed successfully"
+    
+    on_failure:
+      enabled: true
+      message: "Pipeline failed - check logs for details"
+  
+  # Performance settings
+  performance:
+    parallel_execution: false
+    max_concurrent_steps: 1
+    resource_limits:
+      memory_mb: 4096
+      cpu_cores: 2
+      timeout_minutes: 15
+  
+  # Logging configuration
+  logging:
+    level: "INFO"
+    format: "json"
+    destinations:
+      - type: "file"
+        path: "./logs/workflow.log"
+      - type: "console"
+        enabled: true
+  
+  # Security settings
+  security:
+    require_authentication: true
+    allowed_roles:
+      - "developer"
+      - "admin"
+    audit_logging: true
+    sensitive_data_masking: true
+
+# Made with Bob

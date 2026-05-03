@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "legacy-code-modernization-squad"
+version = "0.1.0"
+description = "Agentic AI system for modernizing legacy code using IBM watsonx and MCP protocol"
+requires-python = ">=3.11"
+authors = [
+    {name = "IBM Bob Hackathon Team"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+keywords = ["legacy-code", "modernization", "ai", "watsonx", "mcp", "cobol"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "streamlit==1.31.0",
+    "ibm-watsonx-ai==0.2.0",
+    "ibm-watson==7.0.0",
+    "mcp==0.9.0",
+    "tree-sitter==0.20.4",
+    "radon==6.0.1",
+    "pytest==8.0.0",
+    "pytest-cov==4.1.0",
+    "pytest-asyncio==0.23.0",
+    "PyGithub==2.1.1",
+    "plotly==5.18.0",
+    "networkx==3.2.1",
+    "python-dotenv==1.0.0",
+    "pydantic==2.5.0",
+    "loguru==0.7.2",
+    "aiohttp==3.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black==24.1.0",
+    "isort==5.13.0",
+    "mypy>=1.6.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ibm/legacy-code-modernization-squad"
+Documentation = "https://github.com/ibm/legacy-code-modernization-squad/blob/main/ARCHITECTURE.md"
+Repository = "https://github.com/ibm/legacy-code-modernization-squad"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=. --cov-report=html --cov-report=term"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

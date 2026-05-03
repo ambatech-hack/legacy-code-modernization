@@ -1,0 +1,52 @@
+# Agent Configuration for Legacy Code Modernization Squad
+
+analyzer:
+  name: "Code Analyzer (The Archaeologist)"
+  model: "ibm/granite-13b-instruct-v2"
+  max_tokens: 4096
+  temperature: 0.1
+  timeout: 120
+  description: "Analyzes legacy code structure, dependencies, and complexity"
+  capabilities:
+    - code_parsing
+    - dependency_analysis
+    - complexity_metrics
+    - security_scanning
+
+documentation:
+  name: "Documentation Agent (The Scribe)"
+  model: "ibm/granite-13b-instruct-v2"
+  max_tokens: 8192
+  temperature: 0.3
+  timeout: 180
+  description: "Generates comprehensive documentation for legacy code"
+  capabilities:
+    - api_documentation
+    - inline_comments
+    - architecture_diagrams
+    - user_guides
+
+refactoring:
+  name: "Refactoring Agent (The Architect)"
+  model: "ibm/granite-20b-code-instruct"
+  max_tokens: 8192
+  temperature: 0.2
+  timeout: 300
+  use_code_assistant: true
+  description: "Modernizes legacy code to target language with best practices"
+  capabilities:
+    - code_transformation
+    - pattern_modernization
+    - test_generation
+    - optimization
+
+orchestrator:
+  model: "ibm/granite-13b-instruct-v2"
+  max_tokens: 2048
+  temperature: 0.1
+  timeout: 60
+  description: "Coordinates agent workflow and manages task distribution"
+  retry_attempts: 3
+  retry_delay: 5
+
+# Made with Bob
