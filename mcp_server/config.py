@@ -54,7 +54,7 @@ class MCPServerConfig(BaseModel):
         description="Enable automatic backup before file writes"
     )
     backup_directory: str = Field(
-        default="./backups",
+        default="./output/backups",
         description="Directory for file backups"
     )
     
@@ -224,8 +224,8 @@ def validate_config() -> tuple[bool, Optional[str]]:
         workspace = config.get_workspace_path()
         if not workspace.exists():
             return False, f"Workspace directory does not exist: {workspace}"
-        if not os.access(workspace, os.R_OK | os.W_OK):
-            return False, f"Workspace directory is not readable/writable: {workspace}"
+        if not os.access(workspace, os.R_OK):
+            return False, f"Workspace directory is not readable: {workspace}"
         
         # Check output directory is writable
         output = config.get_output_path()

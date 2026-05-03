@@ -29,13 +29,11 @@ def main():
     print()
     
     try:
-        # Run uvicorn
         subprocess.run([
             sys.executable, "-m", "uvicorn",
             "integrations.api:app",
             "--host", "0.0.0.0",
             "--port", "8000",
-            "--reload",
             "--log-level", "info"
         ])
     except KeyboardInterrupt:

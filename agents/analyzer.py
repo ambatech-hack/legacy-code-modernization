@@ -673,6 +673,20 @@ Provide a concise analysis."""
 
             report = self.analyze_directory(tmp_dir)
 
+            # IMPORTANT: Replace temp paths with the original file path
+            # so downstream agents (refactoring) can read the source file
+            for file_info in report.get('files', []):
+                if file_info.get('path', '').startswith(tmp_dir):
+                    file_info['path'] = code_path
+
+            for func in report.get('functions', []):
+                if func.get('file', '').startswith(tmp_dir):
+                    func['file'] = code_path
+
+            for warning in report.get('warnings', []):
+                if isinstance(warning.get('location'), str) and tmp_dir in warning['location']:
+                    warning['location'] = warning['location'].replace(tmp_dir, os.path.dirname(code_path))
+
             # Save report to output_dir
             ensure_directory(output_dir)
             report_path = os.path.join(output_dir, 'analysis_report.json')

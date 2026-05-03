@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Main application service (API + UI)
@@ -9,37 +9,37 @@ services:
     container_name: ibm-bob-app
     image: ibm-bob:latest
     ports:
-      - "8000:8000"  # API
-      - "8501:8501"  # Streamlit UI
+      - "8000:8000" # API
+      - "8501:8501" # Streamlit UI
     environment:
       # IBM watsonx.ai Configuration
       - WATSONX_API_KEY=${WATSONX_API_KEY}
       - WATSONX_PROJECT_ID=${WATSONX_PROJECT_ID}
       - WATSONX_URL=${WATSONX_URL:-https://us-south.ml.cloud.ibm.com}
       - WATSONX_MODEL_ID=${WATSONX_MODEL_ID:-ibm/granite-13b-chat-v2}
-      
+
       # Generation Parameters
       - WATSONX_MAX_TOKENS=${WATSONX_MAX_TOKENS:-2048}
       - WATSONX_TEMPERATURE=${WATSONX_TEMPERATURE:-0.7}
       - WATSONX_TOP_P=${WATSONX_TOP_P:-1.0}
       - WATSONX_TOP_K=${WATSONX_TOP_K:-50}
-      
+
       # Application Configuration
       - ENVIRONMENT=production
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - OUTPUT_DIR=/app/output
       - LOG_DIR=/app/logs
-      
+
       # API Configuration
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - API_WORKERS=${API_WORKERS:-4}
-      
+
       # Streamlit Configuration
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
       - STREAMLIT_SERVER_HEADLESS=true
-      
+
       # MCP Server Configuration
       - MCP_SERVER_HOST=mcp-server
       - MCP_SERVER_PORT=3000
@@ -65,7 +65,7 @@ services:
     command: >
       sh -c "
         python scripts/run_api_server.py &
-        streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
+        streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true --server.fileWatcherType none --server.runOnSave false
       "
 
   # MCP Server service
@@ -81,6 +81,8 @@ services:
       - MCP_SERVER_HOST=0.0.0.0
       - MCP_SERVER_PORT=3000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    stdin_open: true
+    tty: true
     networks:
       - ibm-bob-network
     restart: unless-stopped
@@ -138,8 +140,8 @@ services:
       - ibm-bob-network
     restart: unless-stopped
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     profiles:
       - monitoring
 

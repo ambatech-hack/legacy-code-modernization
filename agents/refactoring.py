@@ -68,59 +68,45 @@ class RefactoringAgent:
         logger.info(f"Initialized {self.name} with model {self.model_id}")
     
     def _init_watsonx_client(self):
-        """Initialize IBM watsonx AI client."""
-        if not WATSONX_AVAILABLE:
-            logger.warning("IBM watsonx AI library not available. Using template-based generation.")
-            return
-        
+        """Initialize IBM watsonx AI client using the project's robust client."""
         try:
+            from integrations.watsonx_client import WatsonxClient
+            
             api_key = os.getenv('WATSONX_API_KEY')
             project_id = os.getenv('WATSONX_PROJECT_ID')
             region = os.getenv('WATSONX_REGION', 'us-south')
             
             if not api_key or not project_id:
                 logger.warning("IBM watsonx credentials not found. Using template-based generation.")
+                self.watsonx_client = None
                 return
-            
-            # Create credentials
-            credentials = Credentials(
+                
+            self.watsonx_client = WatsonxClient(
                 api_key=api_key,
-                url=f"https://{region}.ml.cloud.ibm.com"
+                project_id=project_id,
+                region=region
             )
             
-            # Create API client
-            self.watsonx_client = APIClient(credentials)
-            self.watsonx_client.set.default_project(project_id)
-            
-            # Create model inference
-            self.model_inference = ModelInference(
-                model_id=self.model_id,
-                api_client=self.watsonx_client,
-                project_id=project_id
-            )
-            
-            logger.info("IBM watsonx client initialized successfully")
-            
+            if self.watsonx_client.is_available():
+                logger.info("IBM watsonx client initialized successfully via WatsonxClient")
+            else:
+                logger.warning("WatsonxClient initialized but reported as unavailable")
+                self.watsonx_client = None
+                
         except Exception as e:
-            logger.error(f"Failed to initialize IBM watsonx client: {e}")
+            logger.error(f"Failed to initialize WatsonxClient: {e}")
             self.watsonx_client = None
-            self.model_inference = None
     
-    def modernize_code(
-        self,
-        legacy_dir: str,
-        analysis_path: str,
-        comments_path: str,
-        output_dir: str = "output/modernized"
-    ) -> dict:
+    def modernize_code(self, legacy_dir: str, analysis_path: str, comments_path: str, output_dir: str, target_language: str = "python") -> dict:
         """
-        Main entry point for code modernization.
+        Orchestrate the code modernization process.
         
         Args:
             legacy_dir: Directory containing legacy code
             analysis_path: Path to analysis_report.json from Agent 1
             comments_path: Path to inline_comments.json from Agent 2
             output_dir: Directory to save modernized code
+            target_language: Target language to convert to (python or java)
         
         Returns:
             Dictionary with modernization results
@@ -162,8 +148,13 @@ class RefactoringAgent:
                     results['warnings'].append(f"Failed to read {file_path}")
                     continue
                 
-                # Convert to Python
-                python_code = self._convert_to_python(legacy_code, language, analysis)
+                # Convert to Target Language
+                if target_language.lower() == "java":
+                    python_code = self._convert_to_java(legacy_code, language, analysis)
+                    ext = ".java"
+                else:
+                    python_code = self._convert_to_python(legacy_code, language, analysis)
+                    ext = ".py"
                 
                 # Restructure code
                 python_code = self._restructure_code(python_code, analysis)
@@ -173,7 +164,7 @@ class RefactoringAgent:
                 
                 # Generate output filename
                 base_name = Path(file_path).stem
-                output_file = os.path.join(output_dir, f"{base_name}.py")
+                output_path = os.path.join(output_dir, f"{base_name}{ext}")
                 
                 # Save modernized code
                 saved_files = self.save_modernized_code(python_code, "", output_dir, base_name)
@@ -188,7 +179,7 @@ class RefactoringAgent:
                     f.write(test_code)
                 results['tests'].append(test_file)
                 
-                logger.info(f"Generated {output_file} and {test_file}")
+                logger.info(f"Generated {output_path} and {test_file}")
             
             # Run tests
             if results['tests']:
@@ -257,6 +248,17 @@ class RefactoringAgent:
         else:
             logger.warning(f"Unsupported language: {language}, using generic conversion")
             return self._generic_conversion(legacy_code, language, analysis)
+
+    def _convert_to_java(self, legacy_code: str, language: str, analysis: dict) -> str:
+        """Convert legacy code to Java."""
+        logger.info(f"Converting {language} to Java")
+        
+        if self.watsonx_client:
+            prompt = f"Convert this {language} code to modern Java 17+:\n\nSource code:\n```{language.lower()}\n{legacy_code}\n```"
+            return self._call_granite_code_model("convert_to_java", prompt, analysis)
+        
+        # Fallback template for Java
+        return f"// Java conversion for {language} is not implemented in template mode.\n// Please enable AI features."
     
     def _convert_cobol_to_python(self, cobol_code: str, analysis: dict) -> str:
         """
@@ -272,7 +274,7 @@ class RefactoringAgent:
         logger.info("Converting COBOL to Python")
         
         # Use IBM Granite if available
-        if self.model_inference:
+        if self.watsonx_client:
             return self._call_granite_code_model(
                 task="convert_cobol_to_python",
                 code=cobol_code,
@@ -464,7 +466,7 @@ class RefactoringAgent:
         """
         logger.info("Converting Visual Basic to Python")
         
-        if self.model_inference:
+        if self.watsonx_client:
             return self._call_granite_code_model(
                 task="convert_vb_to_python",
                 code=vb_code,
@@ -520,7 +522,7 @@ class RefactoringAgent:
         """
         logger.info("Converting Java to Python")
         
-        if self.model_inference:
+        if self.watsonx_client:
             return self._call_granite_code_model(
                 task="convert_java_to_python",
                 code=java_code,
@@ -574,7 +576,7 @@ class RefactoringAgent:
         Returns:
             Python code
         """
-        if self.model_inference:
+        if self.watsonx_client:
             return self._call_granite_code_model(
                 task=f"convert_{language}_to_python",
                 code=code,
@@ -660,6 +662,17 @@ class RefactoringAgent:
             function_name = comment_info.get('function', '').lower().replace('-', '_')
             comment_text = comment_info.get('comment', '')
             
+            # Sanitize: take only the first meaningful line from the AI response
+            # AI sometimes returns multi-line explanations instead of a single comment
+            clean_lines = [l.strip() for l in comment_text.split('\n') if l.strip()]
+            # Prefer lines that look like actual comments (short, no code blocks)
+            single_line = next(
+                (l.lstrip('/#') .strip() for l in clean_lines
+                 if l and not l.startswith('```') and not l.startswith('//') and len(l) < 120),
+                clean_lines[0].lstrip('/#').strip() if clean_lines else ''
+            )
+            comment_text = single_line[:120]  # hard cap at 120 chars
+            
             # Find the function in the code
             for i, line in enumerate(lines):
                 if f'def {function_name}' in line:
@@ -690,12 +703,28 @@ class RefactoringAgent:
         """
         logger.info("Generating unit tests")
         
-        if self.model_inference:
-            return self._call_granite_code_model(
+        if self.watsonx_client:
+            test_code = self._call_granite_code_model(
                 task="generate_tests",
                 code=code,
-                analysis=analysis
+                analysis=analysis,
+                module_name=module_name
             )
+            # Fix hallucinated module imports
+            lines = test_code.split('\n')
+            import sys
+            allowed_mods = set(sys.stdlib_module_names) | {'pytest', 'mock', 'unittest.mock', module_name}
+            for i, line in enumerate(lines):
+                if line.startswith('from ') and ' import ' in line:
+                    mod = line.split(' ')[1].split('.')[0]
+                    if mod not in allowed_mods:
+                        lines[i] = line.replace(f"from {line.split(' ')[1]}", f"from {module_name}")
+                elif line.startswith('import '):
+                    mod = line.split(' ')[1].split('.')[0]
+                    if mod not in allowed_mods and mod != module_name:
+                        lines[i] = f"# {line}  # Removed hallucinated import"
+            
+            return '\n'.join(lines)
         
         # Template-based test generation
         class_name = None
@@ -819,8 +848,8 @@ class RefactoringAgent:
         Returns:
             Generated code
         """
-        if not self.model_inference:
-            logger.warning("IBM watsonx not available, using template-based generation")
+        if not self.watsonx_client:
+            logger.warning("WatsonxClient not available, using template-based generation")
             return code
         
         try:
@@ -832,27 +861,45 @@ class RefactoringAgent:
             elif task == "convert_java_to_python":
                 prompt = self._build_conversion_prompt(code, "Java", analysis)
             elif task == "generate_tests":
-                prompt = self._build_test_generation_prompt(code, analysis)
+                module_name = kwargs.get('module_name', 'module')
+                prompt = self._build_test_generation_prompt(code, analysis, module_name)
+            elif task == "convert_to_java":
+                prompt = code  # Passed as prompt directly
             else:
                 prompt = f"Convert this code to Python:\n\n{code}"
             
-            # Call model
-            response = self.model_inference.generate(
+            if "instruct" in self.model_id.lower():
+                prompt = f"<|system|>\nYou are an expert legacy code modernization AI assistant. Output only the requested code and nothing else.\n<|user|>\n{prompt}\n<|assistant|>\n"
+
+            # Call model via our robust wrapper
+            result = self.watsonx_client.call_model_with_retry(
+                model_id=self.model_id,
                 prompt=prompt,
-                params={
+                parameters={
                     'temperature': self.temperature,
-                    'max_new_tokens': self.max_tokens,
-                    'top_p': 0.95,
-                    'repetition_penalty': 1.1
-                }
+                    'max_new_tokens': min(self.max_tokens, 4096),
+                    'repetition_penalty': 1.1,
+                    'decoding_method': 'sample' if self.temperature > 0 else 'greedy'
+                },
+                max_retries=3,
+                retry_delay=5
             )
             
-            # Extract generated code
-            generated = response.get('results', [{}])[0].get('generated_text', '')
+            if not result.get('success'):
+                logger.error(f"Granite API call failed: {result.get('error')}")
+                return code
+                
+            response_text = result.get('response', '')
+            logger.info(f"Granite raw response length: {len(response_text)}")
+            logger.debug(f"Granite raw response preview: {response_text[:200]}...")
             
             # Clean up the response
-            generated = self._extract_code_from_response(generated)
+            generated = self._extract_code_from_response(response_text)
             
+            if not generated.strip():
+                logger.warning("Granite returned empty code after extraction. Falling back.")
+                return code
+                
             return generated
             
         except Exception as e:
@@ -880,9 +927,11 @@ Requirements:
 
 Generate only the Python code, no explanations."""
     
-    def _build_test_generation_prompt(self, code: str, analysis: dict) -> str:
+    def _build_test_generation_prompt(self, code: str, analysis: dict, module_name: str = "module") -> str:
         """Build prompt for test generation."""
-        return f"""Generate comprehensive pytest unit tests for this Python code:
+        return f"""Generate comprehensive pytest unit tests for this Python code.
+The tests will be in a file alongside the module '{module_name}.py'.
+Make sure to include: `from {module_name} import *` or import the specific classes.
 
 ```python
 {code}
@@ -904,7 +953,7 @@ Generate only the test code, no explanations."""
     def _extract_code_from_response(self, response: str) -> str:
         """Extract code from model response."""
         # Remove markdown code blocks
-        code = re.sub(r'```python\n', '', response)
+        code = re.sub(r'```(?:python|java)\n', '', response, flags=re.IGNORECASE)
         code = re.sub(r'```\n?', '', code)
         
         # Remove explanatory text before/after code
@@ -914,7 +963,8 @@ Generate only the test code, no explanations."""
         
         # Find first line that looks like code
         for i, line in enumerate(lines):
-            if line.strip() and (line.startswith('import ') or line.startswith('from ') or line.startswith('"""') or line.startswith('class ') or line.startswith('def ')):
+            line_s = line.strip()
+            if line_s and (line_s.startswith('import ') or line_s.startswith('from ') or line_s.startswith('"""') or line_s.startswith('class ') or line_s.startswith('def ') or line_s.startswith('public ') or line_s.startswith('package ')):
                 start_idx = i
                 break
         

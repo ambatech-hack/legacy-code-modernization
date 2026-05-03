@@ -258,12 +258,18 @@ def render_code_diff():
         st.warning("Original file not found.")
         return
     
-    # Find modernized file
+    # Find modernized file — prefer the one that matches session state
     modernized_files = []
     if os.path.exists(modernized_dir):
-        for file in os.listdir(modernized_dir):
-            if file.endswith('.py') and not file.startswith('test_'):
+        for file in sorted(os.listdir(modernized_dir), key=lambda f: os.path.getmtime(os.path.join(modernized_dir, f)), reverse=True):
+            if (file.endswith('.py') or file.endswith('.java')) and not file.startswith('test_'):
                 modernized_files.append(file)
+    
+    # Try to match by uploaded file stem first
+    original_stem = Path(original_file.name).stem
+    matched = [f for f in modernized_files if Path(f).stem == original_stem]
+    if matched:
+        modernized_files = matched  # use only the matching file
     
     if not modernized_files:
         st.warning("Modernized code not found.")
@@ -288,7 +294,8 @@ def render_code_diff():
         
         with col2:
             st.markdown("### ✨ Modernized Code")
-            st.code(modernized_code, language='python')
+            output_lang = 'java' if modernized_files[0].endswith('.java') else 'python'
+            st.code(modernized_code, language=output_lang)
         
         st.divider()
         

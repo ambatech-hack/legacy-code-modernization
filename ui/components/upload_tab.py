@@ -191,8 +191,14 @@ def run_modernization_pipeline(
             docs_dir = os.path.join(output_dir, "documentation")
             modernized_dir = os.path.join(output_dir, "modernized")
             
-            for dir_path in [analysis_dir, docs_dir, modernized_dir]:
+            for dir_path in [analysis_dir, docs_dir]:
                 os.makedirs(dir_path, exist_ok=True)
+            
+            # Always clear the modernized dir to avoid showing stale files
+            import shutil
+            if os.path.exists(modernized_dir):
+                shutil.rmtree(modernized_dir)
+            os.makedirs(modernized_dir)
             
             # ===== AGENT 1: CODE ANALYZER =====
             add_log("Agent 1: Starting code analysis...", "info")
@@ -269,7 +275,8 @@ def run_modernization_pipeline(
                     legacy_dir=os.path.dirname(input_path),
                     analysis_path=analysis_report_path,
                     comments_path=inline_comments_path,
-                    output_dir=modernized_dir
+                    output_dir=modernized_dir,
+                    target_language=target_language
                 )
                 
                 duration = time.time() - start_time
