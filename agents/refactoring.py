@@ -170,21 +170,8 @@ class RefactoringAgent:
                 saved_files = self.save_modernized_code(python_code, "", output_dir, base_name)
                 results['files'].append(saved_files['code_file'])
                 
-                # Generate tests
-                test_code = self._generate_tests(python_code, analysis, base_name)
-                test_file = os.path.join(output_dir, f"test_{base_name}.py")
-                
-                # Save test file
-                with open(test_file, 'w', encoding='utf-8') as f:
-                    f.write(test_code)
-                results['tests'].append(test_file)
-                
-                logger.info(f"Generated {output_path} and {test_file}")
+                logger.info(f"Generated {output_path}")
             
-            # Run tests
-            if results['tests']:
-                test_results = self._run_tests(output_dir)
-                results['test_results'] = test_results
             
             # Generate modernization report
             report = self._generate_modernization_report(results, analysis)
@@ -808,7 +795,7 @@ class RefactoringAgent:
         try:
             # Run pytest
             result = subprocess.run(
-                ['pytest', test_dir, '-v', '--tb=short', '--json-report', '--json-report-file=test_results.json'],
+                ['pytest', test_dir, '-v', '--no-cov', '--tb=short', '--json-report', '--json-report-file=test_results.json'],
                 capture_output=True,
                 text=True,
                 cwd=test_dir

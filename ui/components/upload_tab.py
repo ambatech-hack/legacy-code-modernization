@@ -13,9 +13,13 @@ import yaml
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Load environment variables from .env file
+load_dotenv()
 
 from agents.analyzer import CodeAnalyzer
 from agents.documentation import DocumentationAgent
@@ -76,11 +80,7 @@ def render_upload_tab():
         
         with col2:
             st.subheader("⚙️ Options")
-            generate_tests = st.checkbox(
-                "Generate unit tests",
-                value=True,
-                help="Generate pytest unit tests for the modernized code"
-            )
+            generate_tests = False
             
             create_pr = st.checkbox(
                 "Create GitHub PR",
@@ -338,10 +338,47 @@ def run_modernization_pipeline(
                 status_text.text("📤 Creating GitHub PR...")
                 
                 try:
-                    # TODO: Implement GitHub PR creation
-                    add_log("GitHub PR creation not yet implemented", "warning")
+                    from utils.github_integration import create_github_pr_from_workflow
+                    
+                    # Check if GitHub is configured
+                    github_token = os.getenv('GITHUB_TOKEN')
+                    github_repo = os.getenv('GITHUB_REPO')
+                    
+                    if not github_token or not github_repo:
+                        add_log("GitHub not configured. Set GITHUB_TOKEN and GITHUB_REPO in .env file", "warning")
+                        show_warning("⚠️ GitHub not configured. PR creation skipped.")
+                    else:
+                        # Create PR
+                        pr_result = create_github_pr_from_workflow(
+                            source_file=uploaded_file.name,
+                            output_dir=output_dir
+                        )
+                        
+                        if pr_result.get('success'):
+                            pr_url = pr_result.get('pr_url')
+                            pr_number = pr_result.get('pr_number')
+                            add_log(f"✓ Pull Request created: #{pr_number}", "success")
+                            add_log(f"PR URL: {pr_url}", "info")
+                            
+                            # Store PR info in session state
+                            st.session_state.pr_info = {
+                                'url': pr_url,
+                                'number': pr_number,
+                                'branch': pr_result.get('branch')
+                            }
+                            
+                            show_success(f"✅ Pull Request #{pr_number} created successfully!")
+                        else:
+                            error_msg = pr_result.get('error', 'Unknown error')
+                            add_log(f"PR creation failed: {error_msg}", "error")
+                            show_error(f"Failed to create PR: {error_msg}")
+                            
+                except ImportError as e:
+                    add_log(f"GitHub integration module not available: {str(e)}", "warning")
+                    show_warning("GitHub integration not available. Install required packages.")
                 except Exception as e:
-                    add_log(f"PR creation failed: {str(e)}", "warning")
+                    add_log(f"PR creation failed: {str(e)}", "error")
+                    show_error(f"Failed to create PR: {str(e)}")
             
             # ===== COMPLETE =====
             progress_bar.progress(100)

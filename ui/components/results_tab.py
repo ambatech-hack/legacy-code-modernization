@@ -43,6 +43,11 @@ def render_results_tab():
     with col3:
         st.metric("Target Language", workflow_info.get('target_language', 'N/A').upper())
     
+    # Display GitHub PR info if available
+    if 'pr_info' in st.session_state and st.session_state.pr_info:
+        pr_info = st.session_state.pr_info
+        st.info(f"🔗 **GitHub Pull Request Created:** [PR #{pr_info.get('number')}]({pr_info.get('url')}) on branch `{pr_info.get('branch')}`")
+    
     st.divider()
     
     # Create sub-tabs for different result types
@@ -50,7 +55,6 @@ def render_results_tab():
         "📈 Analysis",
         "📝 Documentation",
         "🔄 Code Diff",
-        "🧪 Tests",
         "🕸️ Dependency Graph"
     ])
     
@@ -64,9 +68,6 @@ def render_results_tab():
         render_code_diff()
     
     with result_tabs[3]:
-        render_test_results()
-    
-    with result_tabs[4]:
         render_dependency_graph()
 
 
